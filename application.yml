@@ -1,0 +1,15 @@
+#file: ops/tadbir-config/application.yml
+logging:
+  level:
+    root: INFO
+    org.springframework: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env,configprops,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true

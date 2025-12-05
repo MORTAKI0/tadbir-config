@@ -1,0 +1,28 @@
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          globalcors:
+            cors-configurations:
+              "[/**]":
+                allowed-origin-patterns:
+                  - "https://app.tadbir.ma"
+                  # - "https://*.tadbir.ma"   # if subdomains are needed
+                allowed-methods: ${CORS_ALLOWED_METHODS_PROD:GET,POST,PUT,DELETE,OPTIONS}
+                allowed-headers: ${CORS_ALLOWED_HEADERS_PROD:*}
+                allow-credentials: ${CORS_ALLOW_CREDENTIALS_PROD:true}
+          routes:
+            - id: auth-api
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: '#{@rateLimitKeyResolver}'
+                    redis-rate-limiter.replenishRate: ${AUTH_RL_REPLENISH_RATE_PROD:20}
+                    redis-rate-limiter.burstCapacity: ${AUTH_RL_BURST_CAPACITY_PROD:40}
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${app.jwt.issuer}

@@ -1,0 +1,91 @@
+# file: ops/tadbir-config/gateway-service-dev.yml
+
+server:
+  port: ${GATEWAY_SERVICE_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env,prometheus,gateway
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    redis:
+      enabled: false
+
+spring:
+  main:
+    web-application-type: reactive
+
+  autoconfigure:
+    exclude:
+      # Disable Actuator Redis health (both reactive & non-reactive) in DEV
+      - org.springframework.boot.actuate.autoconfigure.data.redis.RedisReactiveHealthContributorAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.data.redis.RedisHealthContributorAutoConfiguration
+
+  cloud:
+    gateway:
+      httpclient:
+        connect-timeout: 2000
+        response-timeout: 5000ms
+
+      server:
+        webflux:
+          filter:
+            circuit-breaker:
+              enabled: true
+
+          # Dev-specific CORS (Angular + nginx UI)
+          globalcors:
+            add-to-simple-url-handler-mapping: true
+            cors-configurations:
+              "[/**]":
+                allowed-origins:
+                  - "http://localhost:4200"
+                  - "http://localhost:8084"    # nginx frontend container
+                allowed-methods: "*"
+                allowed-headers: "*"
+                allow-credentials: true
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${APP_JWT_ISSUER:https://auth.tadbir.local}
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        permitted-number-of-calls-in-half-open-state: 3
+        wait-duration-in-open-state: 30s
+        automatic-transition-from-open-to-half-open-enabled: true
+    instances:
+      authApi:
+        base-config: default
+      clientsApi:
+        base-config: default
+      productsStockApi:
+        base-config: default
+
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 4s
+        cancel-running-future: true
+    instances:
+      authApi:
+        base-config: default
+      clientsApi:
+        base-config: default
+      productsStockApi:
+        base-config: default

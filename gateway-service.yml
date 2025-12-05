@@ -1,0 +1,170 @@
+# file: ops/tadbir-config/gateway-service.yml
+
+auth-service:
+  # Default: Eureka in local/dev. Cloud Run will override via AUTH_SERVICE_URL.
+  url: ${AUTH_SERVICE_URL:lb://auth-service}
+
+clients-service:
+  # Default: Eureka; can be overridden with CLIENTS_SERVICE_URL.
+  url: ${CLIENTS_SERVICE_URL:lb://clients-service}
+
+products-stock-service:
+  url: ${PRODUCTS_STOCK_SERVICE_URL:lb://products-stock-service}
+
+spring:
+  main:
+    web-application-type: reactive
+
+  cloud:
+    discovery:
+      enabled: true
+
+    gateway:
+      httpclient:
+        connect-timeout: 2000
+        response-timeout: 5000ms
+
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: ${GATEWAY_CONNECT_TIMEOUT:2000}
+            response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:5000ms}
+
+          globalcors:
+            add-to-simple-url-handler-mapping: true
+            cors-configurations:
+              "[/**]":
+                allowed-origins: "${CORS_ALLOWED_ORIGINS:*}"
+                allowed-methods: "${CORS_ALLOWED_METHODS:*}"
+                allowed-headers: "${CORS_ALLOWED_HEADERS:*}"
+                # IMPORTANT: default to false so wildcard is valid
+                allow-credentials: "${CORS_ALLOW_CREDENTIALS:false}"
+
+          # NOTE:
+          # Business routes use Resilience4j circuit breakers:
+          # - authApi for auth
+          # - clientsApi for clients
+          # - productsStockApi for products-stock
+          # Timeouts are configured via resilience4j.timelimiter.*
+
+          routes:
+            - id: auth-api
+              uri: ${auth-service.url}
+              predicates:
+                - Path=/api/v1/auth/**,/.well-known/jwks.json,/api/v1/admin/**
+              filters:
+                # Let the gateway handle CORS; auth-service sees a normal request
+                - RemoveRequestHeader=Origin
+                - name: CircuitBreaker
+                  args:
+                    name: authApi
+                    fallbackUri: forward:/fallback/auth
+
+            - id: clients-api
+              uri: ${clients-service.url}
+              predicates:
+                - Path=/api/v1/clients/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: clientsApi
+                    fallbackUri: forward:/fallback/clients
+
+            - id: clients-health
+              uri: ${clients-service.url}
+              predicates:
+                - Path=/internal/clients/health
+              filters:
+                - SetPath=/actuator/health
+
+            - id: products-stock-api
+              uri: ${products-stock-service.url}
+              predicates:
+                - Path=/api/v1/products-stock/**,/api/v1/stock-movements/**,/api/v1/stock-transfers/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: productsStockApi
+                    fallbackUri: forward:/fallback/products-stock
+
+            - id: products-stock-health
+              uri: ${products-stock-service.url}
+              predicates:
+                - Path=/internal/products-stock/health
+              filters:
+                - SetPath=/actuator/health
+
+          filter:
+            circuit-breaker:
+              enabled: true
+
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin, RETAIN_FIRST
+        - RemoveRequestHeader=Cookie
+        - RemoveResponseHeader=Set-Cookie
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+          issuer-uri: ${APP_JWT_ISSUER:https://auth.tadbir.local}
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        permitted-number-of-calls-in-half-open-state: 3
+        wait-duration-in-open-state: 30s
+        automatic-transition-from-open-to-half-open-enabled: true
+    instances:
+      authApi:
+        base-config: default
+      clientsApi:
+        base-config: default
+      productsStockApi:
+        base-config: default
+
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 4s
+        cancel-running-future: true
+    instances:
+      authApi:
+        base-config: default
+      clientsApi:
+        base-config: default
+      productsStockApi:
+        base-config: default
+
+server:
+  forward-headers-strategy: framework
+
+management:
+  endpoint:
+    gateway:
+      access: read-only   # enables /actuator/gateway... for GET only
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,gateway
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: ${DISCOVERY_SERVICE_URL:http://localhost:8761}/eureka/
+
+app:
+  security:
+    jwks-uri: ${AUTH_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+  jwt:
+    issuer: ${APP_JWT_ISSUER:https://auth.tadbir.local}

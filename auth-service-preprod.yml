@@ -1,0 +1,8 @@
+tadbir:
+  security:
+    cors:
+      allowed-origins: ${AUTH_CORS_ALLOWED_ORIGINS_PREPROD:https://app.tadbir.ma}
+      allowed-methods: ${AUTH_CORS_ALLOWED_METHODS_PREPROD:GET,POST,PUT,PATCH,DELETE,OPTIONS}
+      allowed-headers: ${AUTH_CORS_ALLOWED_HEADERS_PREPROD:Authorization,Content-Type,X-Requested-With,X-XSRF-TOKEN}
+      exposed-headers: ${AUTH_CORS_EXPOSED_HEADERS_PREPROD:Location}
+      allow-credentials: ${AUTH_CORS_ALLOW_CREDENTIALS_PREPROD:true}

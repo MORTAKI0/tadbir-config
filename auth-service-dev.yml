@@ -1,0 +1,63 @@
+# Supabase free tier: very low max client connections.
+# Dev profile uses a single-connection Hikari pool and Flyway disabled to avoid "FATAL: Max client connections reached" when multiple services run together.
+# file: ops/tadbir-config/auth-service-dev.yml
+server:
+  port: ${AUTH_SERVICE_PORT:8081}
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 1
+      minimum-idle: 0
+      idle-timeout: 30000
+      max-lifetime: 600000
+      connection-timeout: 30000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: ${DB_SCHEMA:tadbir_auth}
+  flyway:
+    enabled: false
+  cloud:
+    openfeign:
+      httpclient:
+        hc5:
+          enabled: true
+      circuitbreaker:
+        enabled: true
+      client:
+        config:
+          project-service:
+            url: http://localhost:9099
+            connectTimeout: 1000
+            readTimeout: 2000
+            loggerLevel: basic
+logging:
+  level:
+    com.tadbir.auth: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+    org.springframework.security: DEBUG
+tadbir:
+  auth:
+    banner: "Loaded-from-ConfigServer (dev profile)"
+  security:
+    cors:
+      allowed-origins: http://localhost:3000,http://localhost:4200,http://localhost:8084
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env,metrics,prometheus

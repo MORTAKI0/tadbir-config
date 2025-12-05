@@ -1,0 +1,130 @@
+## Supabase has a low max connection limit; Hikari pools stay small to avoid "Max client connections reached" when multiple services run together.
+# file: ops/tadbir-config/auth-service.yml
+server:
+  port: ${AUTH_SERVICE_PORT:8081}
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/tadbir}
+    username: ${DB_USER:tadbir}
+    password: ${DB_PASSWORD:tadbir}
+    hikari:
+      maximum-pool-size: 6
+      minimum-idle: 1
+      idle-timeout: 30000
+      max-lifetime: 600000
+      connection-timeout: 30000
+      data-source-properties:
+        prepareThreshold: 0
+        preferQueryMode: simple
+  jpa:
+    open-in-view: false
+    show-sql: true
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: ${DB_SCHEMA:public}
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    default-schema: ${DB_SCHEMA:public}
+    schemas: ${DB_SCHEMA:public}
+    connect-retries: 5
+    connect-retries-interval: 2s
+    placeholders:
+      db_schema: ${DB_SCHEMA:public}
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+      httpclient:
+        hc5:
+          enabled: true
+        connection-timeout: ${FEIGN_CONNECTION_TIMEOUT:2000}
+      client:
+        config:
+          default:
+            connectTimeout: ${FEIGN_DEFAULT_CONNECT_TIMEOUT:1000}
+            readTimeout: ${FEIGN_DEFAULT_READ_TIMEOUT:2000}
+            loggerLevel: ${FEIGN_LOG_LEVEL:basic}
+    discovery:
+      enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${app.jwt.issuer}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS:health,metrics,info,prometheus}
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: ${DISCOVERY_SERVICE_URL:http://localhost:8761}/eureka/
+
+logging:
+  level:
+    org.hibernate.SQL: INFO
+    org.hibernate.orm.jdbc.bind: INFO
+    org.springframework.security: INFO
+    org.springframework.web: INFO
+
+app:
+  jwt:
+    issuer: ${JWT_ISSUER:https://auth.tadbir.local}
+    grace-minutes: ${JWT_GRACE_MINUTES:5}
+    key-size: ${JWT_KEY_SIZE:2048}
+    jwks-uri: ${JWT_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+    refresh-ttl-minutes: ${REFRESH_TTL_MINUTES:30}
+    reuse-punish-revoke-family: ${REUSE_PUNISH_REVOKE_FAMILY:true}
+  auth:
+    refresh-ttl-minutes: ${REFRESH_TTL_MINUTES:43200}
+    reuse-punish-revoke-family: ${REUSE_PUNISH_REVOKE_FAMILY:true}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      projectService.get:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: ${RESILIENCE_PROJECT_GET_SLIDING_SIZE:50}
+        failureRateThreshold: ${RESILIENCE_PROJECT_GET_FAILURE_RATE:50}
+        slowCallDurationThreshold: ${RESILIENCE_PROJECT_GET_SLOW_THRESHOLD:1s}
+        slowCallRateThreshold: ${RESILIENCE_PROJECT_GET_SLOW_RATE:50}
+  timelimiter:
+    instances:
+      projectService.get:
+        timeoutDuration: ${RESILIENCE_PROJECT_GET_TIMEOUT:2500ms}
+  bulkhead:
+    instances:
+      projectService.get:
+        maxConcurrentCalls: ${RESILIENCE_PROJECT_GET_CONCURRENCY:20}
+
+spring.cloud.circuitbreaker.resilience4j.enableSemaphoreDefaultBulkhead: true
+
+tadbir:
+  auth:
+    banner: "Loaded-from-ConfigServer"
+  feign:
+    forward-auth:
+      enabled: ${FORWARD_AUTH_ENABLED:true}
+  security:
+    cors:
+      allowed-origins: ${AUTH_CORS_ALLOWED_ORIGINS:https://app.tadbir.ma}
+      allowed-methods: ${AUTH_CORS_ALLOWED_METHODS:GET,POST,PUT,PATCH,DELETE,OPTIONS}
+      allowed-headers: ${AUTH_CORS_ALLOWED_HEADERS:Authorization,Content-Type,X-Requested-With,X-XSRF-TOKEN}
+      exposed-headers: ${AUTH_CORS_EXPOSED_HEADERS:Location}
+      allow-credentials: ${AUTH_CORS_ALLOW_CREDENTIALS:true}

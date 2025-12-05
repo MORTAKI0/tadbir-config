@@ -1,0 +1,58 @@
+## Supabase has a low max connection limit; Hikari pools stay small to avoid "Max client connections reached" when multiple services run together.
+# file : ops/tadbir-config/clients-service.yml
+server:
+  # Dedicated port for clients-service; can be overridden via env
+  port: ${CLIENTS_SERVICE_PORT:8082}
+
+spring:
+  application:
+    name: clients-service
+
+  datasource:
+    # Prefer service-specific env vars, fall back to shared DB_* pattern
+    url: ${CLIENTS_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/tadbir}}
+    username: ${CLIENTS_DB_USER:${DB_USER:postgres}}
+    password: ${CLIENTS_DB_PASSWORD:${DB_PASSWORD:postgres}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 6
+      minimum-idle: 1
+      idle-timeout: 30000
+      max-lifetime: 600000
+      connection-timeout: 30000
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        # default schema for clients-service data
+        default_schema: ${CLIENTS_DB_SCHEMA:${DB_SCHEMA:tadbir_clients}}
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    default-schema: ${CLIENTS_DB_SCHEMA:${DB_SCHEMA:tadbir_clients}}
+    schemas: ${CLIENTS_DB_SCHEMA:${DB_SCHEMA:tadbir_clients}}
+    connect-retries: 5
+    connect-retries-interval: 2s
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${DISCOVERY_SERVICE_URL:http://localhost:8761}/eureka/
+  instance:
+    prefer-ip-address: true
