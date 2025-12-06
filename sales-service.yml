@@ -9,10 +9,10 @@ spring:
     name: sales-service
 
   datasource:
-    # Prefer service-specific env vars, fall back to shared DB_* pattern
-    url: ${SALES_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/tadbir}}
-    username: ${SALES_DB_USER:${DB_USER:postgres}}
-    password: ${SALES_DB_PASSWORD:${DB_PASSWORD:postgres}}
+    # Datasource driven entirely by environment variables
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 6
@@ -28,13 +28,13 @@ spring:
     properties:
       hibernate:
         # default schema for sales-service data
-        default_schema: ${SALES_DB_SCHEMA:${DB_SCHEMA:tadbir_sales}}
+        default_schema: ${DB_SCHEMA:sales}
 
   flyway:
     enabled: true
     baseline-on-migrate: true
-    default-schema: ${SALES_DB_SCHEMA:${DB_SCHEMA:tadbir_sales}}
-    schemas: ${SALES_DB_SCHEMA:${DB_SCHEMA:tadbir_sales}}
+    default-schema: ${DB_SCHEMA:sales}
+    schemas: ${DB_SCHEMA:sales}
     connect-retries: 5
     connect-retries-interval: 2s
 
