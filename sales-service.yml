@@ -1,0 +1,76 @@
+## Supabase has a low max connection limit; Hikari pools stay small to avoid "Max client connections reached" when multiple services run together.
+# file : ops/tadbir-config/sales-service.yml
+server:
+  # Dedicated port for sales-service; can be overridden via env
+  port: ${SALES_SERVICE_PORT:8085}
+
+spring:
+  application:
+    name: sales-service
+
+  datasource:
+    # Prefer service-specific env vars, fall back to shared DB_* pattern
+    url: ${SALES_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/tadbir}}
+    username: ${SALES_DB_USER:${DB_USER:postgres}}
+    password: ${SALES_DB_PASSWORD:${DB_PASSWORD:postgres}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 6
+      minimum-idle: 1
+      idle-timeout: 30000
+      max-lifetime: 600000
+      connection-timeout: 30000
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        # default schema for sales-service data
+        default_schema: ${SALES_DB_SCHEMA:${DB_SCHEMA:tadbir_sales}}
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    default-schema: ${SALES_DB_SCHEMA:${DB_SCHEMA:tadbir_sales}}
+    schemas: ${SALES_DB_SCHEMA:${DB_SCHEMA:tadbir_sales}}
+    connect-retries: 5
+    connect-retries-interval: 2s
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+eureka:
+  client:
+    enabled: true
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: ${DISCOVERY_SERVICE_URL:http://localhost:8761}/eureka/
+  instance:
+    prefer-ip-address: true

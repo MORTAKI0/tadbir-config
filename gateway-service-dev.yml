@@ -76,6 +76,8 @@ resilience4j:
         base-config: default
       productsStockApi:
         base-config: default
+      salesApi:
+        base-config: default
 
   timelimiter:
     configs:
@@ -88,4 +90,6 @@ resilience4j:
       clientsApi:
         base-config: default
       productsStockApi:
+        base-config: default
+      salesApi:
         base-config: default

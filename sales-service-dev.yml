@@ -1,0 +1,52 @@
+## Supabase free tier: very low max client connections.
+# Dev profile uses a small Hikari pool; Flyway stays enabled but retries politely to avoid "FATAL: Max client connections reached".
+# file : ops/tadbir-config/sales-service-dev.yml
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 4
+      minimum-idle: 0
+      idle-timeout: 30000
+      connection-timeout: 30000
+      max-lifetime: 600000
+
+  jpa:
+    show-sql: true
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: ${DB_SCHEMA}
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    connect-retries: 5
+    connect-retries-interval: 2s
+    schemas: ${DB_SCHEMA}
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+server:
+  # Explicit dev port; still override via SALES_SERVICE_PORT if needed
+  port: ${SALES_SERVICE_PORT:8085}
+
+logging:
+  level:
+    com.tadbir.sales: DEBUG
+    org.springframework.jdbc.core: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

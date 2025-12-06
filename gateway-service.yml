@@ -11,6 +11,9 @@ clients-service:
 products-stock-service:
   url: ${PRODUCTS_STOCK_SERVICE_URL:lb://products-stock-service}
 
+sales-service:
+  url: ${SALES_SERVICE_URL:lb://sales-service}
+
 spring:
   main:
     web-application-type: reactive
@@ -45,6 +48,7 @@ spring:
           # - authApi for auth
           # - clientsApi for clients
           # - productsStockApi for products-stock
+          # - salesApi for sales
           # Timeouts are configured via resilience4j.timelimiter.*
 
           routes:
@@ -94,6 +98,23 @@ spring:
               filters:
                 - SetPath=/actuator/health
 
+            - id: sales-api
+              uri: ${sales-service.url}
+              predicates:
+                - Path=/api/v1/sales/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: salesApi
+                    fallbackUri: forward:/fallback/sales
+
+            - id: sales-health
+              uri: ${sales-service.url}
+              predicates:
+                - Path=/internal/sales/health
+              filters:
+                - SetPath=/actuator/health
+
           filter:
             circuit-breaker:
               enabled: true
@@ -128,6 +149,8 @@ resilience4j:
         base-config: default
       productsStockApi:
         base-config: default
+      salesApi:
+        base-config: default
 
   timelimiter:
     configs:
@@ -140,6 +163,8 @@ resilience4j:
       clientsApi:
         base-config: default
       productsStockApi:
+        base-config: default
+      salesApi:
         base-config: default
 
 server:
