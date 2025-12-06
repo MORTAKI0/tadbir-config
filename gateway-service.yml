@@ -112,8 +112,6 @@ spring:
               uri: ${sales-service.url}
               predicates:
                 - Path=/internal/sales/health
-              filters:
-                - SetPath=/actuator/health
 
           filter:
             circuit-breaker:
