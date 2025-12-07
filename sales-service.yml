@@ -1,5 +1,6 @@
-## Supabase has a low max connection limit; Hikari pools stay small to avoid "Max client connections reached" when multiple services run together.
-# file : ops/tadbir-config/sales-service.yml
+## Supabase has a low max connection limit; Hikari pools stay small to avoid
+## "FATAL: Max client connections reached" when multiple services run together.
+
 server:
   # Dedicated port for sales-service; can be overridden via env
   port: ${SALES_SERVICE_PORT:8085}
@@ -29,6 +30,8 @@ spring:
       hibernate:
         # default schema for sales-service data
         default_schema: ${DB_SCHEMA:sales}
+        jdbc:
+          time_zone: UTC
 
   flyway:
     enabled: true
@@ -43,6 +46,18 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+
+  kafka:
+    # Inside Docker we’ll pass KAFKA_BOOTSTRAP_SERVERS=broker:29092
+    # On host, default localhost:9092 works with the exposed port.
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    client-id: sales-service
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        # We don't need type headers, keep payload clean
+        spring.json.add.type.headers: false
 
 management:
   endpoints:
@@ -74,3 +89,10 @@ eureka:
       defaultZone: ${DISCOVERY_SERVICE_URL:http://localhost:8761}/eureka/
   instance:
     prefer-ip-address: true
+
+app:
+  sales:
+    kafka:
+      # Default: off; dev profile will override to true in sales-service-dev.yml
+      enabled: ${SALES_KAFKA_ENABLED:false}
+      order-created-topic: ${SALES_ORDER_CREATED_TOPIC:tadbir.sales.order-created}
