@@ -1,6 +1,8 @@
 ## Supabase free tier: very low max client connections.
-# Dev profile uses a small Hikari pool; Flyway stays enabled but retries politely to avoid "FATAL: Max client connections reached".
-# file : ops/tadbir-config/sales-service-dev.yml
+## Dev profile uses a small Hikari pool; Flyway stays enabled but retries politely
+## to avoid "FATAL: Max client connections reached".
+## file: ops/tadbir-config/sales-service-dev.yml
+
 spring:
   datasource:
     url: ${DB_URL}
@@ -51,3 +53,8 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
+
+app:
+  sales:
+    kafka:
+      enabled: true
