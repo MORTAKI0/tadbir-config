@@ -90,7 +90,7 @@ eureka:
   instance:
     prefer-ip-address: true
 
-app:
+tadbir:
   sales:
     kafka:
       # Default: off; dev profile will override to true in sales-service-dev.yml
